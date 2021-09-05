@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Mahjong</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fomantic-ui@2.8.8/dist/semantic.min.css">
+    <style>
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
+            font-weight: 300;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div class="ui active inverted dimmer" v-if="isloading">
+            <div class="ui text loader">正在与服务器取得联系</div>
+        </div>
+        <div class="ui top fixed borderless large menu">
+            <div class="ui container">
+                <div class="item" style="font-weight: bold;">
+                    {{ appName }}
+                </div>
+                <a class="item" data-tab="basic">{{ $t("nav.home") }}</a>
+                <a class="item" data-tab="room">{{ $t("nav.room") }}</a>
+                <a class="item" data-tab="help">{{ $t("nav.help") }}</a>
+                <div class="ui pointing dropdown link item">
+                    {{ $t("nav.language") }}
+                    <i class="dropdown icon"></i>
+                    <div class="menu">
+                        <div class="item" v-for="(lg, i) in langs" @click="i18n.locale=lg.val">
+                            <i :class="'flag '+lg.flag">
+                            </i>{{ lg.show }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div style="height: 55px"></div>
+        <div class="ui container">
+            <div class="ui tab" data-tab="basic">
+                <div class="ui grid">
+                    <div class="row">
+                        <div class="ten wide column">
+                            <h1>Mahjong</h1>
+                            <div class="ui form">
+                                <div class="field">
+                                    <label>{{ $t('nav.room') }} ID</label>
+                                    <div class="ui disabled input">
+                                        <input type="text" v-model="room">
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label>{{ $t('user.nickname') }}</label>
+                                    <div class="ui action input">
+                                        <input type=text v-model="user.nickname" :placeholder="$t('user.nickname')">
+                                        <button class="ui button" @click="randomName">
+                                            随机一个
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label>ClientID</label>
+                                    <div class="ui disabled input">
+                                        <input type="text" v-model="sked.id">
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <div class="ui primary button" @click="updateMe">
+                                        更新
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="six wide column"></div>
+                    </div>
+                    <h2>{{ $t('mes.onlineUsers') }} {{ onlineUsers.length }}</h2>
+                    <table class="ui very basic table">
+                        <thead>
+                            <tr>
+                                <th>{{ $t('user.nickname') }}</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(u, i) in onlineUsers">
+                                <td>{{ u.nickname }}</td>
+                                <td>
+                                    <template v-if="u.status == 0">
+                                        空闲
+                                    </template>
+                                    <template v-else-if="u.status == 1">
+                                        等待开始
+                                    </template>
+                                    <template v-else>
+                                        游戏中
+                                    </template>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="ui bottom attached tab segment" data-tab="room">
+                <template v-if="user.status == 2">
+                    <div class="ui segment">
+                        龙：<span v-if="game.dragon < 0 || game.dragon > 33" class="ui basic horizontal label">
+                            不知道
+                        </span>
+                        <span v-else class="ui basic horizontal label">
+                            {{ cardsname[game.dragon] }}
+                        </span>
+                        <br>
+                        你的牌：<span v-for="(cd,i) in game.cards" style="cursor: pointer;" class="ui horizontal label"
+                            :class="{ basic:cd!=game.dragon && i !=13, primary:cd==game.dragon && i != 13, green: i == 13}"
+                            @click="put_card(cd)">
+                            {{ cardsname[cd] }}
+                        </span>
+                        <hr />
+                        <span v-if="game.cards.length == 14" class="ui red horizontal label">
+                            你的回合
+                        </span>
+                    </div>
+                    <div class="ui segment">
+                        <h3>出牌情况</h3>
+                        <div v-for="(plyr,i) in game.pt">
+                            <span>
+                                PLY{{ i+1 }}
+                                <template v-if="i == game.me">
+                                    (我)
+                                </template>
+                            </span>:
+                            <span v-for="j in plyr" class="ui basic horizontal label" :class="{ red: j >= 100 }">
+                                {{ cardsname[j % 100] }}
+                            </span>
+                            <br>
+                        </div>
+                    </div>
+                    <div class="ui segment">
+                        <h3>操作</h3>
+                        <button class="ui primary button" v-show="canEat">吃</button>
+                        <button class="ui green button" v-show="canPen">碰</button>
+                        <button class="ui violet button" v-show="canGang">杠</button>
+                        <button class="ui red button" v-show="canHu">胡</button>
+                    </div>
+                </template>
+                <template v-else>
+                    <h3>RoomID {{ room }}</h3>
+                    <div class="ui form">
+                        <div class="field">
+                            <label>链接</label>
+                            <div class="ui disabled action input">
+                                <input type="text" :value="location.href">
+                                <button class="ui button" onclick="alert('自己选中然后复制吧')">
+                                    复制
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <table class="ui very basic table">
+                        <thead>
+                            <tr>
+                                <th>{{ $t('user.nickname') }}</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(u, i) in onlineUsers">
+                                <td>{{ u.nickname }}</td>
+                                <td>
+                                    <template v-if="u.status == 0">
+                                        空闲
+                                    </template>
+                                    <template v-else-if="u.status == 1">
+                                        等待开始
+                                    </template>
+                                    <template v-else>
+                                        游戏中
+                                    </template>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <button class="ui primary button" :class="{ basic: user.status == 0 }" @click="changeStatus"
+                        v-if="onlineUsers.length > 1">
+                        强制开始 {{ forcedUsers }} / {{ onlineUsers.length }}
+                    </button>
+                </template>
+            </div>
+            <div class="ui bottom attached tab segment" data-tab="help">
+                <h1>{{ $t('nav.help') }}</h1>
+
+            </div>
+        </div>
+        <div class="ui segment" id="chatbox"
+            style="box-shadow:0 4px 6px rgba(0, 0, 0, .2);padding:0;backdrop-filter:blur(4px);background-color:#fafafa70;max-width: 300px;width: 30%;position: absolute;left:0;bottom: 0;height: 300px;overflow-x:hidden;transition: all .5s;">
+            <div id="chat_main"
+                style="padding:8px 12px;width: 100%;height:calc(100% - 40px);cursor: pointer;overflow-y: auto;word-break: normal;"
+                onclick="if (chatbox.style.height == '300px') { chatbox.style.height='100px';chatbox.style.width='60px';chatbox.style.backgroundColor='#3d3d3d80'}else{chatbox.style.height='300px';chatbox.style.width='3000px';chatbox.style.backgroundColor='#fafafa70'}">
+                <span v-for="(c, i) in chats">
+                    <template v-if="c.user=='asdfdsafdsfudscsadsa'">
+                        <span style="width:100%;background-color:#ccc;padding:3px 6px;border-radius:5px;">
+                            <i class="icon small grey info"></i>
+                            {{ c.mes }}
+                        </span>
+                    </template>
+                    <template v-else>
+                        <b>{{ c.user }}</b>
+                        {{ c.mes }}
+                    </template>
+                    <br>
+                </span>
+            </div>
+            <form @submit="sendMessage">
+                <div class="ui input" style="position: absolute;bottom: 0;width: 100%;">
+                    <input type="text" v-model="chatMessage" placeholder="聊天">
+                </div>
+            </form>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/md5@2.3.0/dist/md5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/socket.io@3.1.2/client-dist/socket.io.min.js"></script>
+    <!--script src="https://cdn.bootcdn.net/ajax/libs/socket.io/4.1.3/socket.io.js"></script-->
+    <script src="https://cdn.jsdelivr.net/npm/vue-i18n@8.25.0/dist/vue-i18n.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@0.21.1/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fomantic-ui@2.8.8/dist/semantic.min.js"></script>
+    <script>
+        const messages = {
+            en: {
+                nav: {
+                    home: 'Homepage',
+                    settings: 'Settings',
+                    room: 'Rooms',
+                    help: 'Help',
+                    language: 'Language'
+                },
+                user: {
+                    nickname: "Nickname"
+                },
+                mes: {
+                    onlineUsers: 'Online Users'
+                }
+            },
+            cn: {
+                nav: {
+                    home: '首页',
+                    settings: '设置',
+                    room: '房间',
+                    help: '帮助',
+                    language: '语言'
+                },
+                user: {
+                    nickname: "昵称"
+                },
+                mes: {
+                    onlineUsers: '在线用户'
+                }
+            }
+        }
+        const i18n = new VueI18n({
+            locale: 'cn',
+            fallbackLocale: 'cn',
+            messages,
+        })
+        let  = new Vue({
+            el: '#app',
+            data: {
+                room: location.pathname.match(/\/room\/(.*)/)[1],
+                appName: '',
+                user: {
+                    nickname: '匿名',
+                    status: 0
+                },
+                sked: {
+                    id: 'Unknown'
+                },
+                game: {
+                    cards: [],
+                    dragon: -1,
+                    pt: [[], [], [], []],
+                    me: -1
+                },
+                serverLink: '',
+                onlineUsers: [],
+                chats: [],
+                chatMessage: '',
+                isloading: 1,
+                canEat: 0,
+                canPen: 0,
+                canGang: 0,
+                canHu: 0,
+                langs: [{
+                    val: 'en',
+                    show: 'English',
+                    flag: 'gb uk'
+                },
+                {
+                    val: 'cn',
+                    show: '简体中文',
+                    flag: 'cn'
+                }],
+                cardsname: ["1万", "2万", "3万", "4万", "5万", "6万", "7万", "8万", "9万", "1筒", "2筒", "3筒", "4筒", "5筒", "6筒", "7筒", "8筒", "9筒", "1条", "2条", "3条", "4条", "5条", "6条", "7条", "8条", "9条", "东", "南", "西", "北", "中", "发", "白"]
+            },
+            computed: {
+                forcedUsers() {
+                    let ret = 0
+                    for (let i in this.onlineUsers) {
+                        if (this.onlineUsers[i].status == 1)
+                            ret++;
+                    }
+                    return ret;
+                }
+            },
+            mounted() {
+                let _t = this
+                $('.menu .item')
+                    .tab()
+                    ;
+                $('.dropdown').dropdown()
+                $('.ui.checkbox').checkbox()
+                _t.sked = io()
+                if (localStorage.mnick != undefined)
+                    _t.user.nickname = localStorage.mnick
+                _t.sked.on('updateOnlineUsers', function (data) {
+                    _t.onlineUsers = data.onlineUsers[_t.room]
+                    let cnt = 0
+                    for (let i in _t.onlineUsers) {
+                        if (_t.onlineUsers[i].clientId == _t.sked.id) {
+                            _t.user.status = _t.onlineUsers[i].status
+                            _t.game.me = cnt
+                        }
+                        ++cnt
+                    }
+                })
+                _t.sked.on('updateRooms', function (data) {
+                    _t.roomList = data.RoomList
+                })
+                _t.sked.on('message', function (data) {
+                    $('body')
+                        .toast({
+                            class: data.class,
+                            message: data.mes
+                        })
+                        ;
+                })
+                _t.sked.on('available_operation', function (data) {
+                    _t.canHu = data.hu
+                    _t.canEat = data.eat
+                    _t.canPen = data.pen
+                    _t.canGang = data.gang
+                })
+                _t.sked.on('send_chat', function (data) {
+                    _t.chats.push(data)
+                    $("#chat_main").animate({ scrollTop: 2333333 })
+                })
+                _t.sked.on('init_cards', function (data) {
+                    _t.game.cards = data.mycards
+                })
+                _t.sked.on('get_dragon', function (data) {
+                    _t.game.dragon = data.dragon
+                })
+                _t.sked.on('connect', function (data) {
+                    _t.isloading = 0
+                })
+                _t.sked.on('new_put_cards', function (data) {
+                    let olu = _t.onlineUsers
+                    let cp = -1
+                    let cnt = 0
+                    for (let i in olu) {
+                        if (olu[i].clientId == data.cid)
+                            cp = cnt
+                        ++cnt
+                    }
+                    if (cp == -1) {
+                        $('body')
+                            .toast({
+                                class: 'error',
+                                message: '致命的错误：cid not found'
+                            })
+                        return
+                    }
+                    if (typeof _t.game.pt[cp] != 'object')
+                        _t.game.pt[cp] = []
+                    for (let i in _t.game.pt)
+                        for (let j in _t.game.pt[i])
+                            _t.game.pt[i][j] %= 100
+                    _t.game.pt[cp].push(data.new_put_cards + 100)
+                })
+                _t.sked.on('someone_hu', function (data) {
+                    alert(data.hu + '糊了！')
+                    console.log(data.all)
+                    _t.user.status = 0
+                })
+                _t.sked.on('disconnect', function (data) {
+                    _t.isloading = 1
+                })
+                $('.peopleNum').slider({
+                    min: 2,
+                    max: 4,
+                    smooth: true
+                })
+                _t.updateMe()
+            },
+            methods: {
+                genName() {
+                    let Ch1 = ["殇", "伤", "裳", "霓", "离", "璃", "婉", "晚", "绾", "挽", "辞", "歌", "泪", "霜", "柒", "流", "乡", "梦", "忆", "衣", "依", "意", "亦", "艺", "伊", "曦", "溪", "兮", "惜", "浅", "芊", "苏", "落", "洛", "执", "樱", "雪", "音", "若", "蝶", "星", "月", "光", "诗", "思", "卿", "君"]
+                    let Ch2 = ["ヘ", "ン", "ヮ", "ャ", "マ", "ァ", "キ", "の"]
+                    let p = 2
+                    let Name = ""
+                    p += Math.floor(Math.random() * 3)
+                    for (let i = 0; i < p; ++i)
+                        Name += Ch1[Math.floor(Math.random() * Ch1.length)]
+                    Name += Ch2[Math.floor(Math.random() * Ch2.length)]
+                    for (let i = 0; i < 2; ++i)
+                        Name += Ch1[Math.floor(Math.random() * Ch1.length)]
+                    return Name
+                },
+                randomName() {
+                    this.user.nickname = this.genName()
+                },
+                updateMe() {
+                    localStorage.mnick = this.user.nickname
+                    this.sked.emit('updateUser', {
+                        user: this.user,
+                        room: this.room
+                    })
+                },
+                sendMessage(e) {
+                    e.preventDefault();
+                    this.sked.emit('send_chat', {
+                        user: this.user.nickname,
+                        mes: this.chatMessage
+                    })
+                    this.chatMessage = ''
+                },
+                changeStatus() {
+                    this.game = {
+                        cards: [],
+                        dragon: -1,
+                        pt: [[], [], [], []],
+                        me: -1
+                    }
+                    this.user.status = 1 - this.user.status
+                    this.sked.emit('updateUser', {
+                        user: this.user,
+                        room: this.room
+                    })
+                },
+                put_card(e) {
+                    let _t = this
+                    _t.sked.emit('put_cards', {
+                        card: e
+                    })
+                }
+            },
+            i18n
+        })
+
+    </script>
+</body>
+
+</html>
