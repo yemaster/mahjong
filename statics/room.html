@@ -20,16 +20,16 @@
 <body>
     <div id="app">
         <div class="ui active inverted dimmer" v-if="isloading">
-            <div class="ui text loader">正在与服务器取得联系</div>
+            <div class="ui text loader">{{ $t('gettingConnected') }}</div>
         </div>
         <div class="ui top fixed borderless large menu">
             <div class="ui container">
                 <div class="item" style="font-weight: bold;">
                     Mahjong
                 </div>
-                <a class="item" data-tab="basic">{{ $t("nav.home") }}</a>
-                <a class="item" data-tab="room">{{ $t("nav.room") }}</a>
-                <a class="item" data-tab="help">{{ $t("nav.help") }}</a>
+                <a class="item" data-tab="basic">{{ $t('nav.home') }}</a>
+                <a class="item" data-tab="room">{{ $t('nav.room') }}</a>
+                <a class="item" data-tab="help">{{ $t('nav.help') }}</a>
                 <div class="ui pointing dropdown link item">
                     {{ $t("nav.language") }}
                     <i class="dropdown icon"></i>
@@ -62,7 +62,7 @@
                                         <div class="ui action input">
                                             <input type=text v-model="user.nickname" :placeholder="$t('user.nickname')">
                                             <button class="ui button" @click="randomName">
-                                                随机一个
+                                                {{ $t('mes.randomOne') }}
                                             </button>
                                         </div>
                                     </div>
@@ -74,7 +74,7 @@
                                     </div>
                                     <div class="field">
                                         <div class="ui primary button" @click="updateMe">
-                                            更新
+                                            {{ $t('mes.update') }}
                                         </div>
                                     </div>
                                 </div>
@@ -86,7 +86,7 @@
                                 <thead>
                                     <tr>
                                         <th>{{ $t('user.nickname') }}</th>
-                                        <th>状态</th>
+                                        <th>{{ $t('user.status') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -94,13 +94,13 @@
                                         <td>{{ u.nickname }}</td>
                                         <td>
                                             <template v-if="u.status == 0">
-                                                空闲
+                                                {{ $t('user.free') }}
                                             </template>
                                             <template v-else-if="u.status == 1">
-                                                等待开始
+                                                {{ $t('user.waiting') }}
                                             </template>
                                             <template v-else>
-                                                游戏中
+                                                {{ $t('user.ingame') }}
                                             </template>
                                         </td>
                                     </tr>
@@ -113,25 +113,25 @@
             <div class="ui tab" data-tab="room">
                 <template v-if="user.status == 2">
                     <div class="ui segment">
-                        龙：<span v-if="game.dragon < 0 || game.dragon > 33" class="ui basic horizontal label">
-                            不知道
+                        {{ $t('game.dragon') }}：<span v-if="game.dragon < 0 || game.dragon > 33" class="ui basic horizontal label">
+                            {{ $t('game.unknown') }}
                         </span>
                         <span v-else class="ui basic horizontal label">
                             {{ cardsname[game.dragon] }}
                         </span>
                         <br>
-                        你的牌：<span v-for="(cd,i) in game.cards" style="cursor: pointer;" class="ui horizontal label"
+                        {{ $t('game.yourCards') }}：<span v-for="(cd,i) in game.cards" style="cursor: pointer;" class="ui horizontal label"
                             :class="{ basic:cd.num!=game.dragon && i !=13, primary:cd.num==game.dragon && i != 13, green: i == 13, grey: cd.type != 0}"
                             @click="put_card(cd.num)">
                             {{ cardsname[cd.num] }}
                         </span>
                         <hr />
                         <span v-if="game.cards.length >= 14" class="ui red horizontal label">
-                            你的回合
+                            {{ $t('game.yourRound') }}
                         </span>
                     </div>
                     <div class="ui segment">
-                        <h3>出牌情况</h3>
+                        <h3>{{ $t('game.discardedCards') }}</h3>
                         <div v-for="(plyr,i) in game.pt">
                             <span>
                                 PLY{{ i+1 }}
@@ -146,12 +146,12 @@
                         </div>
                     </div>
                     <div class="ui segment">
-                        <h3>操作</h3>
-                        <button class="ui button" v-show="canOp" @click="doOp(0)">取消</button>
-                        <button class="ui primary button" v-show="canEat" @click="doOp(2)">吃</button>
-                        <button class="ui green button" v-show="canPen" @click="doOp(3)">碰</button>
-                        <button class="ui violet button" v-show="canGang" @click="doOp(4)">杠</button>
-                        <button class="ui red button" v-show="canHu" @click="doOp(1)">胡</button>
+                        <h3>{{ $t('game.options') }}</h3>
+                        <button class="ui button" v-show="canOp" @click="doOp(0)">{{ $t('game.cancel') }}</button>
+                        <button class="ui primary button" v-show="canEat" @click="doOp(2)">{{ $t('game.eat') }}</button>
+                        <button class="ui green button" v-show="canPen" @click="doOp(3)">{{ $t('game.pen') }}</button>
+                        <button class="ui violet button" v-show="canGang" @click="doOp(4)">{{ $t('game.gang') }}</button>
+                        <button class="ui red button" v-show="canHu" @click="doOp(1)">{{ $t('game.hu') }}</button>
                     </div>
                 </template>
                 <template v-else>
@@ -161,23 +161,23 @@
                             <div class="five wide column">
                                 <div class="ui form">
                                     <div class="field">
-                                        <label>链接</label>
+                                        <label>{{ $t('mes.link') }}</label>
                                         <div class="ui disabled action input">
                                             <input type="text" :value="location.href">
                                             <button class="ui button" onclick="alert('自己选中然后复制吧')">
-                                                复制
+                                                {{ $t('mes.copy') }}
                                             </button>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="eleven wide column">
-                                <h2>用户状态</h2>
+                                <h2>{{ $t('mes.onlineUsers') }}</h2>
                                 <table class="ui very basic table">
                                     <thead>
                                         <tr>
                                             <th>{{ $t('user.nickname') }}</th>
-                                            <th>状态</th>
+                                            <th>{{ $t('user.status') }}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -185,13 +185,13 @@
                                             <td>{{ u.nickname }}</td>
                                             <td>
                                                 <template v-if="u.status == 0">
-                                                    空闲
+                                                    {{ $t('user.free') }}
                                                 </template>
                                                 <template v-else-if="u.status == 1">
-                                                    等待开始
+                                                    {{ $t('user.waiting') }}
                                                 </template>
                                                 <template v-else>
-                                                    游戏中
+                                                    {{ $t('user.ingame') }}
                                                 </template>
                                             </td>
                                         </tr>
@@ -199,7 +199,7 @@
                                 </table>
                                 <button class="ui primary button" :class="{ basic: user.status == 0 }"
                                     @click="changeStatus" v-if="onlineUsers.length > 1">
-                                    强制开始 {{ forcedUsers }} / {{ onlineUsers.length }}
+                                    {{ $t('mes.forceStart') }} {{ forcedUsers }} / {{ onlineUsers.length }}
                                 </button>
                             </div>
                         </div>
@@ -256,10 +256,34 @@
                     language: 'Language'
                 },
                 user: {
-                    nickname: "Nickname"
+                    nickname: "Nickname",
+                    status: 'Status',
+                    free: 'Free',
+                    waiting: 'Waiting',
+                    ingame: 'Gaming',
+                },
+                game: {
+                    dragon: 'Dragon',
+                    unknown: 'Unknown',
+                    yourCards: 'Your Cards',
+                    yourRound: 'Your Round',
+                    discardedCards: 'Discarded Cards',
+                    me: 'Me',
+                    options: 'Options',
+                    cancel: 'Cancel',
+                    eat: 'Eat',
+                    pen: 'Bump',
+                    gang: 'Lever',
+                    hu: 'Agari',
                 },
                 mes: {
-                    onlineUsers: 'Online Users'
+                    onlineUsers: 'Online Users',
+                    gettingConnected: 'Contacting the server...',
+                    randomOne: 'Random',
+                    update: 'Update',
+                    link: 'Link',
+                    copy: 'Copy',
+                    forceStart: 'Force Start',
                 }
             },
             cn: {
@@ -271,10 +295,34 @@
                     language: '语言'
                 },
                 user: {
-                    nickname: "昵称"
+                    nickname: "昵称",
+                    status: '状态',
+                    free: '空闲',
+                    waiting: '等待开始',
+                    ingame: '游戏中',
+                },
+                game: {
+                    dragon: '龙',
+                    unknown: '不知道',
+                    yourCards: '你的牌',
+                    yourRound: '你的回合',
+                    discardedCards: '出牌情况',
+                    me: '我',
+                    options: '操作',
+                    cancel: '取消',
+                    eat: '吃',
+                    pen: '碰',
+                    gang: '杠',
+                    hu: '胡',
                 },
                 mes: {
-                    onlineUsers: '在线用户'
+                    onlineUsers: '在线用户',
+                    gettingConnected: '正在与服务器取得联系...',
+                    randomOne: '随机一个',
+                    update: '更新',
+                    link: '链接',
+                    copy: '复制',
+                    forceStart: '强制开始',
                 }
             }
         }

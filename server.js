@@ -413,8 +413,6 @@ io.on('connection', socket => {
         cards[room].chilist = []
         cards[room].ganglist = []
         for (let i in onlineUsers[room]) {
-            if (onlineUsers[room].clientId == cid)
-                continue
             let cdlst = []
             for (let j in cards[room][onlineUsers[room][i].clientId])
                 cdlst.push(cards[room][onlineUsers[room][i].clientId][j].num)
@@ -630,6 +628,11 @@ io.on('connection', socket => {
                 if (a.type != b.type) return b.type - a.type
                 else return a.num - b.num
             })
+            cards[room].oplist = []
+            cards[room].hulist = []
+            cards[room].chilist = []
+            cards[room].penist = []
+            cards[room].ganglist = []
             io.to(cid).emit('init_cards', {
                 mycards: cards[room][cid]
             })
