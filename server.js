@@ -4,7 +4,7 @@ const { start } = require('repl');
 
 const app = require('express')();
 const http = require('http').Server(app);
-const io = require('socket.io')(http);
+const io = require('socket.io')(http, { cors: true });
 const port = process.env.PORT || 3000;
 
 let onlineUsers = []
@@ -28,6 +28,7 @@ function go_start_cards(room) {
     cards[room] = {
         all: pc,
         drogan: -1,
+        pcard: 0,
         id: 0,
         now: 0,
         round: 0,
@@ -35,7 +36,8 @@ function go_start_cards(room) {
         hulist: [],
         ganglist: [],
         penlist: [],
-        chilist: []
+        chilist: [],
+        oplist: [],
     }
     for (let i in onlineUsers[room]) {
         cards[room][onlineUsers[room][i].clientId] = []
@@ -47,10 +49,10 @@ function go_start_cards(room) {
             let t = 0
             for (let i in onlineUsers[room]) {
                 ++t;
-                cards[room][onlineUsers[room][i].clientId].push(cards[room].all[++cards[room].id])
+                cards[room][onlineUsers[room][i].clientId].push({ num: cards[room].all[++cards[room].id], type: 0 })
                 if (t > 1)
                     continue
-                cards[room][onlineUsers[room][i].clientId].push(cards[room].all[++cards[room].id])
+                cards[room][onlineUsers[room][i].clientId].push({ num: cards[room].all[++cards[room].id], type: 0 })
             }
             for (let i in onlineUsers[room]) {
                 io.to(onlineUsers[room][i].clientId).emit('init_cards', {
@@ -59,7 +61,10 @@ function go_start_cards(room) {
             }
             setTimeout(function () {
                 for (let i in onlineUsers[room]) {
-                    cards[room][onlineUsers[room][i].clientId].sort(function (a, b) { return a - b })
+                    cards[room][onlineUsers[room][i].clientId].sort((a, b) => {
+                        if (a.type != b.type) return b.type - a.type
+                        else return a.num - b.num
+                    })
                 }
                 cards[room].drogan = [1, 2, 3, 4, 5, 6, 7, 8, 0, 10, 11, 12, 13, 14, 15, 16, 17, 9, 19, 20, 21, 22, 23, 24, 25, 26, 18, 28, 29, 30, 27, 32, 33, 31][cards[room].all[++cards[room].id] + 1]
                 for (let i in onlineUsers[room]) {
@@ -76,7 +81,7 @@ function go_start_cards(room) {
         }
         for (let i in onlineUsers[room]) {
             for (let k = 1; k <= 4; ++k)
-                cards[room][onlineUsers[room][i].clientId].push(cards[room].all[++cards[room].id])
+                cards[room][onlineUsers[room][i].clientId].push({ num: cards[room].all[++cards[room].id], type: 0 })
         }
         for (let i in onlineUsers[room]) {
             io.to(onlineUsers[room][i].clientId).emit('init_cards', {
@@ -291,7 +296,7 @@ function nextRound(room) {
             break
         ++t
     }
-    cards[room][ccid].push(cards[room].all[++cards[room].id])
+    cards[room][ccid].push({ num: cards[room].all[++cards[room].id], type: 0 })
     io.to(ccid).emit('init_cards', {
         mycards: cards[room][ccid]
     })
@@ -369,7 +374,7 @@ io.on('connection', socket => {
             })
             return
         }
-        if (cards[room][cid].filter(function (item) { return item == card }).length <= 0) {
+        if (cards[room][cid].filter(function (item) { return item.num == card && item.type == 0 }).length <= 0) {
             socket.emit('message', {
                 class: 'error',
                 mes: '没有这张牌'
@@ -379,11 +384,14 @@ io.on('connection', socket => {
         let isDelete = 0
         let newCards = []
         for (let i in cards[room][cid])
-            if (cards[room][cid][i] == card && !isDelete)
+            if (cards[room][cid][i].num == card && cards[room][cid][i].type == 0 && !isDelete)
                 isDelete = 1
             else
                 newCards.push(cards[room][cid][i])
-        newCards.sort(function (a, b) { return a - b })
+        newCards.sort(function (a, b) {
+            if (a.type != b.type) return b.type - a.type
+            else return a.num - b.num
+        })
         cards[room][cid] = newCards
         io.to(cid).emit('init_cards', {
             mycards: cards[room][cid]
@@ -392,7 +400,7 @@ io.on('connection', socket => {
         if (cards[room].now == onlineUsers[room].length)
             cards[room].now = 0
         cards[room].round++
-
+        cards[room].pcard = card
         for (let i in onlineUsers[room]) {
             io.to(onlineUsers[room][i].clientId).emit('new_put_cards', {
                 new_put_cards: card,
@@ -405,57 +413,237 @@ io.on('connection', socket => {
         cards[room].chilist = []
         cards[room].ganglist = []
         for (let i in onlineUsers[room]) {
-            if (count(cards[room][onlineUsers[room][i].clientId], card) == 3)
+            if (onlineUsers[room].clientId == cid)
+                continue
+            let cdlst = []
+            for (let j in cards[room][onlineUsers[room][i].clientId])
+                cdlst.push(cards[room][onlineUsers[room][i].clientId][j].num)
+            let cdlst2 = []
+            for (let j in cards[room][onlineUsers[room][i].clientId])
+                if (cards[room][onlineUsers[room][i].clientId][j].type == 0)
+                    cdlst2.push(cards[room][onlineUsers[room][i].clientId][j].num)
+            if (count(cdlst2, card) >= 3)
                 cards[room].ganglist.push(onlineUsers[room][i].clientId)
-            if (count(cards[room][onlineUsers[room][i].clientId], card) == 2)
+            if (count(cdlst2, card) >= 2)
                 cards[room].penlist.push(onlineUsers[room][i].clientId)
             if (card < 27) {
-                if (card % 9 >= 2 && count(cards[room][onlineUsers[room][i].clientId], card - 1) >= 1 && count(cards[room][onlineUsers[room][i].clientId], card - 2) >= 1)
+                if (card % 9 >= 2 && count(cdlst2, card - 1) >= 1 && count(cdlst2, card - 2) >= 1)
                     cards[room].chilist.push(onlineUsers[room][i].clientId)
-                else if (card % 9 >= 1 && card % 9 <= 7 && count(cards[room][onlineUsers[room][i].clientId], card - 1) >= 1 && count(cards[room][onlineUsers[room][i].clientId], card + 1) >= 1)
+                else if (card % 9 >= 1 && card % 9 <= 7 && count(cdlst2, card - 1) >= 1 && count(cdlst2, card + 1) >= 1)
                     cards[room].chilist.push(onlineUsers[room][i].clientId)
-                else if (card % 9 <= 6 && count(cards[room][onlineUsers[room][i].clientId], card + 1) >= 1 && count(cards[room][onlineUsers[room][i].clientId], card + 2) >= 1)
+                else if (card % 9 <= 6 && count(cdlst2, card + 1) >= 1 && count(cdlst2, card + 2) >= 1)
                     cards[room].chilist.push(onlineUsers[room][i].clientId)
             }
-            if (canhu(cards[room][onlineUsers[room][i].clientId].concat([card]), cards[room].drogan) == true)
+            if (canhu(cdlst.concat([card]), cards[room].drogan) == true)
                 cards[room].hulist.push(onlineUsers[room][i].clientId)
             ++pid
         }
-        console.log(cards[room].hulist)
-        //if (cards[room].ganglist.length + cards[room].chilist.length + cards[room].hulist.length + cards[room].penlist.length == 0)
-        nextRound(room)
-        if (cards[room].hulist.length > 0)
-            io.to(cards[room].hulist[0]).emit('available_operation', {
-                hu: 1,
-                eat: 0,
-                pen: 0,
-                gang: 0
+        cards[room].oplist = []
+        for (let i in cards[room].hulist)
+            if (cards[room].oplist.indexOf(cards[room].hulist[i]) == -1)
+                cards[room].oplist.push(cards[room].hulist[i])
+        for (let i in cards[room].ganglist)
+            if (cards[room].oplist.indexOf(cards[room].ganglist[i]) == -1)
+                cards[room].oplist.push(cards[room].ganglist[i])
+        for (let i in cards[room].penlist)
+            if (cards[room].oplist.indexOf(cards[room].penlist[i]) == -1)
+                cards[room].oplist.push(cards[room].penlist[i])
+        for (let i in cards[room].chilist)
+            if (cards[room].oplist.indexOf(cards[room].chilist[i]) == -1)
+                cards[room].oplist.push(cards[room].chilist[i])
+        console.log(cards[room].oplist)
+        if (cards[room].oplist.length == 0)
+            nextRound(room)
+        else {
+            io.to(cards[room].oplist[0]).emit('available_operation', {
+                op: 1,
+                hu: cards[room].hulist.indexOf(cards[room].oplist[0]),
+                eat: cards[room].chilist.indexOf(cards[room].oplist[0]),
+                pen: cards[room].penlist.indexOf(cards[room].oplist[0]),
+                gang: cards[room].ganglist.indexOf(cards[room].oplist[0]),
             })
+        }
     })
     socket.on('do_operation', (data) => {
         let b = data.type
         let room = joined_room
+        let cid = socket.id
+        let pid = 0
         // 0:取消 1:胡 2:吃 3:碰 4:杠
-        if (b == 0) {
-            nextRound(room)
+        if (cards[room].oplist[0] != socket.id) {
+            socket.emit('message', {
+                class: 'error',
+                mes: '不是你的回合'
+            })
             return
         }
-        if (b == 1) {
-            if (cards[room].hulist.indexOf(socket.id) == -1) {
-                socket.emit('message', {
-                    class: 'error',
-                    mes: '你并不能胡'
-                })
-                return
-            }
-            else {
-                for (let i in onlineUsers[room])
-                    io.to(onlineUsers[room][i]).emit('someone_hu', {
-                        hu: socket.id,
-                        all: cards[room]
-                    })
-            }
+        if (b == 0) {
+            io.to(cards[room].oplist[0]).emit('available_operation', {
+                op: 0,
+                hu: -1,
+                eat: -1,
+                pen: -1,
+                gang: -1,
+            })
+            cards[room].oplist = cards[room].oplist.filter((item) => { return item != socket.id })
         }
+        else {
+            let cdlst = []
+            let card = cards[room].pcard
+            for (let j in cards[room][cid])
+                if (cards[room][cid][j].type == 0)
+                    cdlst.push(cards[room][cid][j].num)
+            for (let j in onlineUsers[room]) {
+                if (onlineUsers[room][j].clientId == cid)
+                    break
+                ++pid
+            }
+            if (b == 1) {
+                if (cards[room].hulist.indexOf(cid) == -1) {
+                    socket.emit('message', {
+                        class: 'error',
+                        mes: '你并不能胡'
+                    })
+                    return
+                }
+                else {
+                    for (let i in onlineUsers[room])
+                        io.to(onlineUsers[room][i]).emit('someone_hu', {
+                            hu: onlineUsers[room][pid].nickname,
+                            all: cards[room]
+                        })
+                    console.log(onlineUsers[room][pid].nickname + "糊了")
+                    return
+                }
+            }
+            else if (b == 2) {
+                if (cards[room].chilist.indexOf(cid) == -1) {
+                    socket.emit('message', {
+                        class: 'error',
+                        mes: '你并不能吃'
+                    })
+                    return
+                }
+                else {
+                    if (card < 27) {
+                        if (card % 9 >= 2 && count(cdlst, card - 1) >= 1 && count(cdlst, card - 2) >= 1) {
+                            for (let i in cards[room][cid]) {
+                                if (cards[room][cid][i].num == card - 1 && cards[room][cid][i].type == 0) {
+                                    cards[room][cid][i].type = cards[room].round
+                                    break
+                                }
+                            }
+                            for (let i in cards[room][cid]) {
+                                if (cards[room][cid][i].num == card - 2 && cards[room][cid][i].type == 0) {
+                                    cards[room][cid][i].type = cards[room].round
+                                    break
+                                }
+                            }
+                            cards[room].now = pid
+                        }
+                        else if (card % 9 >= 1 && card % 9 <= 7 && count(cdlst, card - 1) >= 1 && count(cdlst, card + 1) >= 1) {
+                            for (let i in cards[room][cid]) {
+                                if (cards[room][cid][i].num == card - 1 && cards[room][cid][i].type == 0) {
+                                    cards[room][cid][i].type = cards[room].round
+                                    break
+                                }
+                            }
+                            for (let i in cards[room][cid]) {
+                                if (cards[room][cid][i].num == card + 1 && cards[room][cid][i].type == 0) {
+                                    cards[room][cid][i].type = cards[room].round
+                                    break
+                                }
+                            }
+                            cards[room].now = pid
+                        }
+                        else if (card % 9 <= 6 && count(cdlst, card + 1) >= 1 && count(cdlst, card + 2) >= 1) {
+                            for (let i in cards[room][cid]) {
+                                if (cards[room][cid][i].num == card + 2 && cards[room][cid][i].type == 0) {
+                                    cards[room][cid][i].type = cards[room].round
+                                    break
+                                }
+                            }
+                            for (let i in cards[room][cid]) {
+                                if (cards[room][cid][i].num == card + 1 && cards[room][cid][i].type == 0) {
+                                    cards[room][cid][i].type = cards[room].round
+                                    break
+                                }
+                            }
+                            cards[room].now = pid
+                        }
+                        else {
+                            console.log(cdlst)
+                            socket.emit('message', {
+                                class: 'error',
+                                mes: '你并不能吃'
+                            })
+                            return
+                        }
+                    }
+                }
+            }
+            else if (b == 3) {
+                if (cards[room].penlist.indexOf(cid) == -1) {
+                    socket.emit('message', {
+                        class: 'error',
+                        mes: '你并不能碰'
+                    })
+                    return
+                }
+                else {
+                    let pCount = 0
+                    for (let i in cards[room][cid]) {
+                        if (cards[room][cid][i].num == card && cards[room][cid][i].type == 0) {
+                            cards[room][cid][i].type = cards[room].round
+                            pCount++
+                            if (pCount == 2)
+                                break
+                        }
+                    }
+                }
+            }
+            else if (b == 4) {
+                if (cards[room].ganglist.indexOf(cid) == -1) {
+                    socket.emit('message', {
+                        class: 'error',
+                        mes: '你并不能杠'
+                    })
+                    return
+                }
+                else {
+                    let pCount = 0
+                    for (let i in cards[room][cid]) {
+                        if (cards[room][cid][i].num == card && cards[room][cid][i].type == 0) {
+                            cards[room][cid][i].type = cards[room].round
+                            pCount++
+                            if (pCount == 3)
+                                break
+                        }
+                    }
+                }
+            }
+            cards[room][cid].push({
+                num: card,
+                type: cards[room].round
+            })
+            cards[room][cid].sort((a, b) => {
+                if (a.type != b.type) return b.type - a.type
+                else return a.num - b.num
+            })
+            io.to(cid).emit('init_cards', {
+                mycards: cards[room][cid]
+            })
+            io.to(cards[room].oplist[0]).emit('available_operation', {
+                op: 0,
+                hu: -1,
+                eat: -1,
+                pen: -1,
+                gang: -1,
+            })
+            return
+        }
+        if (cards[room].oplist.length == 0)
+            nextRound(room)
 
     })
     socket.on('disconnect', (data) => {
