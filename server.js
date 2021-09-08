@@ -190,7 +190,7 @@ function isAgari(pai) {
     }
 }
 
-function judgehu(x) {
+const judgehu = (x) => {
     if (typeof x != "object")
         return false
     if (x.length != 14)
@@ -296,7 +296,7 @@ const count = (arr, item) => {
     return count;
 }
 
-function nextRound(room) {
+const nextRound = (room) => {
     let t = 0
     let ccid
     for (let i in onlineUsers[room]) {
