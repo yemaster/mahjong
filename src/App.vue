@@ -42,7 +42,7 @@
                   </a-card>
                   <br />
                   <a-row :gutter="16">
-                    <a-col :span="18">
+                    <a-col :xs="24" :sm="24" :md="18" :lg="18" :xl="18">
                       <a-card size="small" title="我的牌">
                         龙：<a-tag
                           v-if="
@@ -75,7 +75,7 @@
                         <a-tag v-else> 不是你的回合 </a-tag>
                       </a-card>
                     </a-col>
-                    <a-col :span="6">
+                    <a-col :xs="24" :sm="24" :md="6" :lg="6" :xl="6">
                       <a-card size="small" title="操作">
                         <a-space>
                           <a-button
